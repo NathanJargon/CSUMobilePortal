@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Alert, ImageBackground, View, TouchableOpacity, Text, StyleSheet, Dimensions, Image, BackHandler } from 'react-native';
+import { Button, Modal, Alert, ImageBackground, View, TouchableOpacity, Text, StyleSheet, Dimensions, Image, BackHandler } from 'react-native';
 import { TextInput } from 'react-native-paper';
 import { firebase } from './FirebaseConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -8,63 +8,98 @@ import { Calendar } from 'react-native-calendars';
 const { width, height } = Dimensions.get('window');
 
 export default function MainScreen({ navigation }) {
-    useEffect(() => {
-      const backAction = async () => {
-        Alert.alert("Hold on!", "Are you sure you want to log out?", [
-          {
-            text: "No",
-            onPress: () => null,
-            style: "cancel"
-          },
-          {
-            text: "Yes",
-            onPress: async () => {
-              await firebase.auth().signOut();
+  const [isModalVisible, setModalVisible] = useState(false);
+  const [selectedDayEvents, setSelectedDayEvents] = useState([]);
+  const [userEmail, setUserEmail] = useState('');
 
-              // await AsyncStorage.clear();
-
-              navigation.navigate('Login');
-            }
+  useEffect(() => {
+    const backAction = async () => {
+      Alert.alert("Hold on!", "Are you sure you want to log out?", [
+        {
+          text: "No",
+          onPress: () => null,
+          style: "cancel"
+        },
+        {
+          text: "Yes",
+          onPress: async () => {
+            await firebase.auth().signOut();
+            navigation.navigate('Login');
           }
-        ]);
-        return true;
-      };
+        }
+      ]);
+      return true;
+    };
 
-      const backHandler = BackHandler.addEventListener(
-        "hardwareBackPress",
-        backAction
-      );
+    const backHandler = BackHandler.addEventListener(
+      "hardwareBackPress",
+      backAction
+    );
 
-      return () => backHandler.remove();
-    }, []);
+    const fetchEmail = async () => {
+      const email = await AsyncStorage.getItem('email'); 
+      setUserEmail(email || 'No Email'); 
+    };
 
+    fetchEmail();
 
-    return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>HOME</Text>
-          <View style={styles.userSection}>
-            <Image source={require('../assets/icons/profilelogo.png')} style={styles.userImage} />
-            <Text style={styles.userName}>First Last Name</Text>
+    return () => backHandler.remove();
+  }, []);
+
+  const handleDayPress = (day) => {
+    console.log('selected day', day);
+    setSelectedDayEvents(["Event 1", "Event 2"]);
+    setModalVisible(true);
+  };
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>HOME</Text>
+        <View style={styles.userSection}>
+          <Image source={require('../assets/icons/profilelogo.png')} style={styles.userImage} />
+          <Text style={styles.userName}>{userEmail}</Text>
+        </View>
+      </View>
+      <View style={styles.schoolYearContainer}>
+        <Text style={styles.schoolYearTitle}>SCHOOL YEAR</Text>
+        <Text style={styles.schoolYear}>2023 - 2024</Text>
+      </View>
+
+      <Calendar
+        style={{ marginTop: 20 }}
+        onDayPress={handleDayPress}
+        markedDates={{
+          '2023-05-16': {selected: true, marked: true, selectedColor: 'blue'},
+        }}
+      />
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isModalVisible}
+        onRequestClose={() => {
+          setModalVisible(!isModalVisible);
+        }}
+      >
+        <View style={styles.centeredView}>
+          <View style={styles.modalView}>
+            <Text style={styles.modalText}>Events:</Text>
+            {selectedDayEvents.map((event, index) => (
+              <Text key={index} style={styles.eventText}>{event}</Text>
+            ))}
+            <Button
+              title="Close"
+              onPress={() => setModalVisible(!isModalVisible)}
+            />
           </View>
         </View>
-        <View style={styles.schoolYearContainer}>
-          <Text style={styles.schoolYearTitle}>SCHOOL YEAR</Text>
-          <Text style={styles.schoolYear}>2023 - 2024</Text>
-        </View>
+      </Modal>
+    </View>
+  );
+}
 
-        <Calendar
-          style={{ marginTop: 20 }}
-          onDayPress={(day) => { console.log('selected day', day); }}
-          markedDates={{
-            '2023-05-16': {selected: true, marked: true, selectedColor: 'blue'},
-          }}
-        />
-
-      </View>
-    );
-  }
-
+// Styles remain unchanged
 
   const styles = StyleSheet.create({
     container: {
@@ -131,4 +166,35 @@ export default function MainScreen({ navigation }) {
       color: '#737373',
       marginTop: 5,
     },
+    centeredView: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      marginTop: 22
+    },
+    modalView: {
+      margin: 20,
+      backgroundColor: "white",
+      borderRadius: 20,
+      padding: 50,
+      alignItems: "center",
+      shadowColor: "#000",
+      shadowOffset: {
+        width: 0,
+        height: 2
+      },
+      shadowOpacity: 0.25,
+      shadowRadius: 3.84,
+      elevation: 5
+    },
+    modalText: {
+      fontSize: width * 0.05,
+      fontWeight: 'bold',
+      marginBottom: 15,
+      textAlign: "center"
+    },
+    eventText: {
+      fontSize: 16,
+      marginBottom: 15,
+    }
   });

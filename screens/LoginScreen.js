@@ -6,6 +6,8 @@ import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import loginbg from '../assets/loginbg.jpg'; 
 import logo from '../assets/logo.png';
+import viewIcon from '../assets/icons/view.png';
+import viewOffIcon from '../assets/icons/hide.png';
 
 const { width, height } = Dimensions.get('window');
 
@@ -13,6 +15,7 @@ export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(false);
+  const [passwordVisible, setPasswordVisible] = useState(false);
 
   useEffect(() => {
     const checkLogin = async () => {
@@ -44,43 +47,39 @@ export default function LoginScreen({ navigation }) {
     return () => authListener();
   }, []);
 
-  
-  const onLogin = () => {
-    firebase
-      .auth()
-      .signInWithEmailAndPassword(email, password)
-      .then((response) => {
-        if (remember) {
-          AsyncStorage.setItem('email', email);
-          AsyncStorage.setItem('password', password);
-        } else {
-          AsyncStorage.removeItem('email');
-          AsyncStorage.removeItem('password');
+  const onLogin = async () => {
+    try {
+      const teacherQuerySnapshot = await firebase.firestore().collection('teachers')
+        .where('employeeId', '==', email)
+        .where('password', '==', password) 
+        .get();
+
+      let userDoc = null;
+      if (teacherQuerySnapshot.empty) {
+        const userQuerySnapshot = await firebase.firestore().collection('users')
+          .where('userId', '==', email)
+          .where('password', '==', password)
+          .get();
+        if (!userQuerySnapshot.empty) {
+          userDoc = userQuerySnapshot.docs[0];
         }
-        navigation.navigate('Home');
-      })
-      .catch((error) => {
-        switch (error.code) {
-          case 'auth/invalid-email':
-            alert('The email address is badly formatted.');
-            break;
-          case 'auth/user-disabled':
-            alert('The user corresponding to the given email has been disabled.');
-            break;
-          case 'auth/user-not-found':
-            alert('There is no user corresponding to the given email.');
-            break;
-          case 'auth/wrong-password':
-            alert('The password is invalid for the given email.');
-            break;
-          default:
-            alert('Email and password is incorrect. Sign up if you do not have an account.');
-        }
-      });
+      } else {
+        userDoc = teacherQuerySnapshot.docs[0];
+      }
+
+      if (userDoc) {
+        // If a user document is found, handle successful login immediately
+        await AsyncStorage.setItem('email', email);
+        await AsyncStorage.setItem('password', password);
+        navigation.navigate('Main');
+      } else {
+        // Handle login failure, e.g., show an error message
+      }
+    } catch (error) {
+      // Handle any errors that occur during the login process
+    }
   };
 
-
-  
   return (
     <ImageBackground source={loginbg} style={styles.container}>
       <Image source={logo} style={styles.logo} />
@@ -97,15 +96,21 @@ export default function LoginScreen({ navigation }) {
           mode="flat"
           theme={{ colors: { underlineColor:'transparent', background :'transparent' }}}
         />
-        <TextInput
-          label="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          style={[styles.input, { backgroundColor: 'transparent' }]}
-          mode="flat"
-          theme={{ colors: { underlineColor:'transparent', background :'transparent' }}}
-        />
+        <View style={styles.passwordContainer}>
+          <TextInput
+            label="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!passwordVisible} // Toggle based on the state
+            style={[styles.input, { flex: 1, backgroundColor: 'transparent' }]}
+            mode="flat"
+            theme={{ colors: { underlineColor:'transparent', background :'transparent' }}}
+          />
+          <TouchableOpacity onPress={() => setPasswordVisible(!passwordVisible)} style={styles.viewIcon}>
+            <Image source={passwordVisible ? viewOffIcon : viewIcon} style={{ width: 24, height: 24 }} />
+          </TouchableOpacity>
+        </View>
+
         <TouchableOpacity style={styles.button} onPress={onLogin}>
           <Text style={styles.buttonText}>LOGIN</Text>
         </TouchableOpacity>
@@ -113,11 +118,19 @@ export default function LoginScreen({ navigation }) {
     </ImageBackground>
   );
 }
-
+  
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'flex-end',
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10, 
+  },
+  viewIcon: {
+    marginLeft: 10, 
   },
   logo: {
     alignSelf: 'center', 
