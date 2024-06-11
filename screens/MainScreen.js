@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Modal, Alert, ImageBackground, View, TouchableOpacity, Text, StyleSheet, Dimensions, Image, BackHandler } from 'react-native';
+import { ScrollView, Button, Modal, Alert, ImageBackground, View, TouchableOpacity, Text, StyleSheet, Dimensions, Image, BackHandler } from 'react-native';
 import { TextInput } from 'react-native-paper';
 import { firebase } from './FirebaseConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -11,6 +11,7 @@ export default function MainScreen({ navigation }) {
   const [isModalVisible, setModalVisible] = useState(false);
   const [selectedDayEvents, setSelectedDayEvents] = useState([]);
   const [userEmail, setUserEmail] = useState('');
+  const [allEvents, setAllEvents] = useState({});
 
   useEffect(() => {
     const backAction = async () => {
@@ -46,9 +47,62 @@ export default function MainScreen({ navigation }) {
     return () => backHandler.remove();
   }, []);
 
-  const handleDayPress = (day) => {
-    console.log('selected day', day);
-    setSelectedDayEvents(["Event 1", "Event 2"]);
+  useEffect(() => {
+    const fetchAndMarkEvents = async () => {
+      const events = {};
+      const querySnapshot = await firebase.firestore().collection('calendarEvents').get();
+      querySnapshot.forEach((doc) => {
+        const eventData = doc.data();
+        const eventStartDate = new Date(eventData.eventStartDate);
+        const eventEndDate = new Date(eventData.eventEndDate);
+
+        // Loop through each day between start and end dates
+        for (let d = new Date(eventStartDate); d <= eventEndDate; d.setDate(d.getDate() + 1)) {
+          const dateString = d.toISOString().split('T')[0]; // Convert to YYYY-MM-DD format
+
+          // Mark the date with blue dot, change to purple if already marked
+          if (!events[dateString]) {
+            events[dateString] = {marked: true, dotColor: 'blue'};
+          } else {
+            events[dateString] = {...events[dateString], dotColor: 'purple'};
+          }
+        }
+      });
+
+      setAllEvents(events);
+    };
+
+    fetchAndMarkEvents();
+  }, []);
+
+  const fetchEventsForDay = async (selectedDate) => {
+    const events = [];
+    const querySnapshot = await firebase.firestore().collection('calendarEvents').get();
+    querySnapshot.forEach((doc) => {
+      const eventData = doc.data();
+      const eventStartDate = new Date(eventData.eventStartDate).getTime();
+      const eventEndDate = new Date(eventData.eventEndDate).getTime();
+      const selectedDateTime = new Date(selectedDate).getTime();
+      if (selectedDateTime >= eventStartDate && selectedDateTime <= eventEndDate) {
+        events.push({
+          eventDetails: eventData.eventDetails,
+          eventEndDate: eventData.eventEndDate,
+          eventStartDate: eventData.eventStartDate,
+          eventWhat: eventData.eventWhat,
+          eventWhen: eventData.eventWhen,
+          eventWhere: eventData.eventWhere,
+          eventWho: eventData.eventWho,
+          id: eventData.id
+        });
+      }
+    });
+    return events;
+  };
+
+  const handleDayPress = async (day) => {
+    console.log('selected day', day.dateString);
+    const events = await fetchEventsForDay(day.dateString);
+    setSelectedDayEvents(events);
     setModalVisible(true);
   };
 
@@ -69,9 +123,7 @@ export default function MainScreen({ navigation }) {
       <Calendar
         style={{ marginTop: 20 }}
         onDayPress={handleDayPress}
-        markedDates={{
-          '2023-05-16': {selected: true, marked: true, selectedColor: 'blue'},
-        }}
+        markedDates={allEvents}
       />
 
       <Modal
@@ -85,9 +137,19 @@ export default function MainScreen({ navigation }) {
         <View style={styles.centeredView}>
           <View style={styles.modalView}>
             <Text style={styles.modalText}>Events:</Text>
-            {selectedDayEvents.map((event, index) => (
-              <Text key={index} style={styles.eventText}>{event}</Text>
-            ))}
+            <ScrollView style={{width: '100%'}}>
+              {selectedDayEvents.map((event, index) => (
+                <View key={index} style={styles.eventItem}>
+                  <Text style={styles.eventText}>Details: {event.eventDetails}</Text>
+                  <Text style={styles.eventText}>Start Date: {event.eventStartDate}</Text>
+                  <Text style={styles.eventText}>End Date: {event.eventEndDate}</Text>
+                  <Text style={styles.eventText}>What: {event.eventWhat}</Text>
+                  <Text style={styles.eventText}>When: {event.eventWhen}</Text>
+                  <Text style={styles.eventText}>Where: {event.eventWhere}</Text>
+                  <Text style={styles.eventText}>Who: {event.eventWho}</Text>
+                </View>
+              ))}
+            </ScrollView>
             <Button
               title="Close"
               onPress={() => setModalVisible(!isModalVisible)}
@@ -99,18 +161,23 @@ export default function MainScreen({ navigation }) {
   );
 }
 
-// Styles remain unchanged
-
   const styles = StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: 'white',
     },
+    eventItem: {
+      marginBottom: 15,
+      paddingBottom: 15,
+      borderBottomWidth: 1,
+      borderBottomColor: '#E0E0E0', // Light grey color for the separator
+    },
     header: {
       height: '18%',
       width: '100%',
       backgroundColor: '#1e69c4',
-      borderRadius: 15,
+      borderBottomLeftRadius: 15,
+      borderBottomRightRadius: 15,
     },
     headerTitle: {
       fontSize: width * 0.05,

@@ -17,6 +17,43 @@ export default function LoginScreen({ navigation }) {
   const [remember, setRemember] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
 
+  const saveDtrRecord = async (email) => {
+    const now = new Date();
+    const date = now.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+    const time = now.toTimeString().split(' ')[0]; // Format as HH:MM:SS
+    const isMorning = now.getHours() < 12;
+
+    let dtrRecord = {
+      employeeId: email, // Use the email parameter directly
+      date: date,
+      amIn: isMorning ? time : undefined,
+      amOut: undefined,
+      pmIn: isMorning ? undefined : time,
+      pmOut: undefined,
+      otIn: undefined,
+      otOut: undefined
+    };
+
+    dtrRecord = Object.fromEntries(Object.entries(dtrRecord).filter(([_, v]) => v !== undefined));
+    const documentName = `${email}-${date}`;
+
+    const docRef = firebase.firestore().collection('dtr').doc(documentName);
+    try {
+      const doc = await docRef.get();
+      if (doc.exists) {
+        // Document exists, update it
+        await docRef.update(dtrRecord);
+        console.log('DTR record updated successfully with name:', documentName);
+      } else {
+        // Document does not exist, create it
+        await docRef.set(dtrRecord);
+        console.log('DTR record saved successfully with name:', documentName);
+      }
+    } catch (error) {
+      console.error('Error saving DTR record: ', error);
+    }
+  };
+
   useEffect(() => {
     const checkLogin = async () => {
       const savedEmail = await AsyncStorage.getItem('email');
@@ -68,12 +105,12 @@ export default function LoginScreen({ navigation }) {
       }
 
       if (userDoc) {
-        // If a user document is found, handle successful login immediately
         await AsyncStorage.setItem('email', email);
         await AsyncStorage.setItem('password', password);
+        saveDtrRecord(email);
         navigation.navigate('Main');
       } else {
-        // Handle login failure, e.g., show an error message
+        // Handle login failure
       }
     } catch (error) {
       // Handle any errors that occur during the login process

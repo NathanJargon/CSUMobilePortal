@@ -4,16 +4,42 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { useNavigation } from '@react-navigation/native';
+import { firebase } from './screens/FirebaseConfig';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import HomeScreen from './screens/MainScreen';
 import StudentsScreen from './screens/StudentsScreen';
 import LoginScreen from './screens/LoginScreen';
 import ClassesScreen from './screens/ClassesScreen';
 import SubjectScreen from './screens/SubjectScreen';
+import ScheduleScreen from './screens/ScheduleScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 const SubjectStack = createStackNavigator();
+
+const saveDtrRecord = async (email) => {
+  const now = new Date();
+  const date = now.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+  const time = now.toTimeString().split(' ')[0]; // Format as HH:MM:SS
+  const isMorning = now.getHours() < 12;
+
+  let dtrUpdate = isMorning ? { amOut: time } : { pmOut: time };
+  const documentName = `${email}-${date}`;
+  const docRef = firebase.firestore().collection('dtr').doc(documentName);
+
+  try {
+    const doc = await docRef.get();
+    if (doc.exists) {
+      await docRef.update(dtrUpdate);
+      console.log('DTR record updated successfully with name:', documentName);
+    } else {
+      console.error('DTR record does not exist for today.');
+    }
+  } catch (error) {
+    console.error('Error saving DTR record: ', error);
+  }
+};
 
 function MyTabs() {
   const navigation = useNavigation(); 
@@ -30,20 +56,21 @@ function MyTabs() {
         }}
       />
       <Tab.Screen 
+        name="Schedule" 
+        component={ScheduleScreen} 
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Image source={require('./assets/icons/schedule.png')} style={{ width: size, height: size, tintColor: color }} />
+          ),
+        }}
+      />
+      
+      <Tab.Screen 
         name="Classes" 
         component={ClassesScreen} 
         options={{
           tabBarIcon: ({ color, size }) => (
             <Image source={require('./assets/icons/calendar.png')} style={{ width: size, height: size, tintColor: color }} />
-          ),
-        }}
-      />
-      <Tab.Screen 
-        name="Students" 
-        component={StudentsScreen} 
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Image source={require('./assets/icons/user.png')} style={{ width: size, height: size, tintColor: color }} />
           ),
         }}
       />
@@ -58,7 +85,19 @@ function MyTabs() {
               "Are you sure you want to log out?", 
               [
                 { text: "Cancel", style: "cancel" },
-                { text: "Log Out", onPress: () => navigation.navigate('Login') },
+                { text: "Log Out", onPress: async () => {
+                  try {
+                    const userEmail = await AsyncStorage.getItem('email');
+                    if (userEmail) {
+                      await saveDtrRecord(userEmail);
+                      navigation.navigate('Login');
+                    } else {
+                      console.error('No email found in AsyncStorage.');
+                    }
+                  } catch (error) {
+                    console.error('Error during logout: ', error);
+                  }
+                }},
               ]
             );
           },
