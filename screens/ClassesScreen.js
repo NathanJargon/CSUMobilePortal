@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Dimensions, TouchableOpacity } from 'react-native'; // Import TouchableOpacity
+import { Image, View, Text, StyleSheet, Dimensions, TouchableOpacity } from 'react-native'; // Import TouchableOpacity
 import { firebase } from './FirebaseConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -7,6 +7,7 @@ const { width, height } = Dimensions.get('window');
 
 export default function ClassesScreen({ navigation }) {
   const [subjects, setSubjects] = useState([]);
+  const editIcon = require('../assets/icons/edit.png');
 
   useEffect(() => {
     const fetchSubjectsAndUpdateGradePercentage = async () => {
@@ -57,7 +58,10 @@ export default function ClassesScreen({ navigation }) {
       </View>
       {subjects.map((subject) => (
         <TouchableOpacity key={subject.id} style={styles.subjectContainer} onPress={() => navigation.navigate('Subject', { subject })}>
-          <Text style={styles.classCode}>{subject.classCode}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingEnd: 5 }}>
+            <Image source={editIcon} style={styles.editIcon} />
+            <Text style={styles.classCode}>{subject.classCode}</Text>
+          </View>
           <View style={styles.gradeProgress}>
             <Text style={styles.gradeProgressText}>Grade Progress</Text>
             <Text style={styles.gradeProgressText}>
@@ -80,6 +84,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'white',
+  },
+  editIcon: {
+    marginTop: height * 0.01,
+    marginLeft: width * 0.05,
+    marginRight: width * 0.05,
+    width: 20, // Adjust the size as needed
+    height: 20, // Adjust the size as needed
   },
   header: {
     height: '18%',

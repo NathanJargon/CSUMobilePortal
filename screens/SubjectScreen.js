@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TextInput, TouchableOpacity, Modal, View, Text, StyleSheet, Dimensions, BackHandler } from 'react-native';
+import { TextInput, Image, TouchableOpacity, Modal, View, Text, StyleSheet, Dimensions, BackHandler } from 'react-native';
 import { firebase } from './FirebaseConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -14,7 +14,7 @@ export default function SubjectScreen({ navigation }) {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [classCode, setClassCode] = useState('');
-  
+  const editIcon = require('../assets/icons/edit.png');
   useEffect(() => {
     const checkIfSubjectBelongsToUser = async () => {
       const userEmail = await AsyncStorage.getItem('email');
@@ -214,29 +214,33 @@ export default function SubjectScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>GRADES</Text>
+  <View style={styles.container}>
+    <View style={styles.header}>
+      <Text style={styles.headerTitle}>GRADES</Text>
+    </View>
+    <TouchableOpacity
+      style={styles.addButton}
+      onPress={() => setModalVisible(true)}
+    >
+      <Text style={styles.addButtonText}>Add Student</Text>
+    </TouchableOpacity>
+    <View style={styles.headerRow}>
+      <Text style={styles.nameTitle}>Name</Text>
+      <Text style={styles.gradeTitle}>Grade</Text>
+    </View>
+    {subjects.map((subject) => (
+      <View key={subject.id} style={styles.subjectContainer}>
+        {subject.students.map((student) => (
+          <TouchableOpacity key={student.id} onPress={() => handleStudentPress(student)}>
+            <View style={styles.studentRow}>
+              <Image source={editIcon} style={styles.editIcon} />
+              <Text style={styles.studentName}>{student.name}</Text>
+              <Text style={styles.studentGrade}>{student.grade}%</Text>
+            </View>
+          </TouchableOpacity>
+        ))}
       </View>
-      <TouchableOpacity
-        style={styles.addButton}
-        onPress={() => setModalVisible(true)}
-      >
-        <Text style={styles.addButtonText}>Add Student</Text>
-      </TouchableOpacity>
-      {subjects.map((subject) => (
-        <View key={subject.id} style={styles.subjectContainer}>
-          {subject.students.map((student) => (
-            <TouchableOpacity key={student.id} onPress={() => handleStudentPress(student)}>
-              <View style={styles.studentRow}>
-                <Text style={styles.studentName}>{student.name}</Text>
-                <Text style={styles.studentGrade}>{student.grade}%</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-      ))}
-
+    ))}
 
       <Modal
         animationType="slide"
@@ -325,6 +329,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'white',
   },
+  editIcon: {
+    width: 20, // Adjust the size as needed
+    height: 20, // Adjust the size as needed
+    marginRight: 10, // Adds some space between the icon and the name
+  },
   header: {
     height: '18%',
     width: '100%',
@@ -339,6 +348,23 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: 'bold',
     marginTop: 20,
+  },
+  gradeTitle: {
+    fontSize: 30,
+    color: 'black',
+    fontWeight: 'bold'
+  },
+  nameTitle: {
+    fontSize: 30,
+    color: 'black',
+    fontWeight: 'bold'
+  },
+  headerRow: {
+    marginTop: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 25, // Adjust padding as needed
+    marginBottom: 10, // Space before the list starts
   },
   gradeProgress: {
     alignItems: 'flex-end',
