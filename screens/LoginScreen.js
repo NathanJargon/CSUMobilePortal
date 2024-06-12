@@ -66,7 +66,7 @@ export default function LoginScreen({ navigation }) {
           .auth()
           .signInWithEmailAndPassword(savedEmail, savedPassword)
           .then((response) => {
-            navigation.navigate('Home');
+            navigation.navigate('Main');
           })
           .catch((error) => {
             // Handle login error here
