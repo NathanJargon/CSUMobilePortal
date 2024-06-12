@@ -1,42 +1,120 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, View, Text, StyleSheet } from 'react-native';
+import { firebase } from './FirebaseConfig';
 import moment from 'moment';
 
-// Optimized EventComponent with React.memo
-const EventComponent = React.memo(({ title, startDate, endDate }) => (
+const hours = [...Array(24).keys()]; 
+
+
+const EventComponent = React.memo(({ items }) => (
   <View style={styles.eventContainer}>
-    <Text style={styles.eventTitle}>{title}</Text>
-    <Text>{moment(startDate).format('HH:mm')} - {moment(endDate).format('HH:mm')}</Text>
+    {items.map((item, index) => (
+      <View key={index} style={styles.itemContainer}>
+        <Text style={styles.eventTitle}>{item.subjectDescription}</Text>
+        <Text style={styles.eventTitle}>{item.startTime} — {item.endTime}</Text>
+        <Text style={styles.eventTitle}>Subject: {item.subjectCode}</Text>
+        <Text style={styles.eventTitle}>Class: {item.classCode}</Text>
+        <Text style={styles.eventTitle}>Course: {item.courseCode}</Text>
+        <Text style={styles.eventTitle}>Period: {item.period}</Text>
+        <Text style={styles.eventTitle}>Building: {item.building}</Text>
+        <Text style={styles.eventTitle}>Room: {item.roomCode}</Text>
+      </View>
+    ))}
   </View>
 ));
 
-const hours = [...Array(24).keys()]; // Generate array of 0-23 for hours
 
 export default function ScheduleScreen() {
+  const [items, setItems] = useState([]);
+  const dayMap = {
+    'M': 'Monday',
+    'T': 'Tuesday',
+    'W': 'Wednesday',
+    'TH': 'Thursday',
+    'F': 'Friday',
+    'SAT': 'Saturday',
+    'SUN': 'Sunday'
+  };
+  
+  useEffect(() => {
+      const fetchSchedule = async () => {
+        const scheduleCollection = firebase.firestore().collection('schedule');
+        const snapshot = await scheduleCollection.get();
+        console.log(snapshot.docs.map(doc => doc.data())); 
+        let fetchedItems = [];
+        snapshot.docs.forEach(doc => {
+          const data = doc.data();
+          // Check if the day field contains multiple days
+          if (data.day.includes('/')) {
+            // Split the day field and create an item for each day
+            const days = data.day.toUpperCase().split('/');
+            days.forEach(dayAbbreviation => {
+              const fullDayName = dayMap[dayAbbreviation] || dayAbbreviation; // Convert to full name or keep as is if not found
+              console.log(fullDayName); // Log the fullDayName
+              fetchedItems.push({
+                ...data,
+                day: fullDayName,
+              });
+            });
+          } else {
+            // Handle single day items as before
+            const fullDayName = dayMap[data.day.toUpperCase()] || data.day;
+            console.log(fullDayName); // Log the fullDayName
+            fetchedItems.push({
+              ...data,
+              day: fullDayName,
+            });
+          }
+        });
+        setItems(fetchedItems);
+      };
+
+      fetchSchedule();
+    }, []);
+  
+  const groupEventsByDay = (events) => {
+    return events.reduce((acc, event) => {
+      const { day } = event;
+      if (!acc[day]) {
+        acc[day] = [];
+      }
+      acc[day].push(event);
+      return acc;
+    }, {});
+  };
+  
   const daysOfWeek = useMemo(() => (
     [...Array(7).keys()].map(offset => moment().startOf('week').add(offset, 'days'))
   ), []);
 
-  // Dynamically generate events for demonstration
-  const items = useMemo(() => [
-    {
-      title: 'Morning Meeting',
-      startDate: moment().hour(9).minute(0).toDate(),
-      endDate: moment().hour(10).minute(0).toDate(),
-    },
-    {
-      title: 'Lunch Break',
-      startDate: moment().hour(12).minute(30).toDate(),
-      endDate: moment().hour(13).minute(30).toDate(),
-    },
-  ].sort((a, b) => a.startDate - b.startDate), []);
-
   const renderEvent = (event) => {
-    const startHour = moment(event.startDate).hour();
-    const dayOfWeek = moment(event.startDate).day();
+    const startTimeMoment = moment(event.startTime, 'HH:mm');
+    const endTimeMoment = moment(event.endTime, 'HH:mm');
+    const durationHours = endTimeMoment.diff(startTimeMoment, 'hours', true);
+    const startHour = startTimeMoment.hour();
+    const startMinutes = startTimeMoment.minutes();
+    const topPosition = (startHour * 60) + startMinutes;
+    const eventHeight = durationHours * 60; // Convert duration from hours to minutes for height
+
+    // Mapping from full day names to day of the week indices
+    const dayOfWeekIndexMap = {
+      'Monday': 1, // Monday
+      'Tuesday': 2, // Tuesday
+      'Wednesday': 3, // Wednesday
+      'Thursday': 4, // Thursday
+      'Friday': 5, // Friday
+      'Saturday': 6, // Saturday
+      'Sunday': 0 // Sunday
+    };
+
+    // Use the mapping to get the day of the week index
+    const dayOfWeekIndex = dayOfWeekIndexMap[event.day] || 0;
+
+    console.log(`Event: ${event.classCode}, Start Date: ${event.startTime}, Day of Week: ${dayOfWeekIndex}`);
+
     return (
-      <View key={event.title} style={[styles.event, { top: startHour * 60, left: dayOfWeek * 100 }]}>
-        <EventComponent {...event} />
+      <View key={event.classCode} style={[styles.event, { top: topPosition, height: eventHeight, left: dayOfWeekIndex * 100 }]}>
+        <EventComponent items={[event]} />
       </View>
     );
   };
@@ -129,5 +207,8 @@ const styles = StyleSheet.create({
   },
   eventTitle: {
     fontWeight: 'bold',
+    textAlign: 'center',
+    marginTop: 10,
+    marginBottom: 10,
   },
 });
