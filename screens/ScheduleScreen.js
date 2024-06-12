@@ -12,12 +12,6 @@ const EventComponent = React.memo(({ items }) => (
       <View key={index} style={styles.itemContainer}>
         <Text style={styles.eventTitle}>{item.subjectDescription}</Text>
         <Text style={styles.eventTitle}>{item.startTime} — {item.endTime}</Text>
-        <Text style={styles.eventTitle}>Subject: {item.subjectCode}</Text>
-        <Text style={styles.eventTitle}>Class: {item.classCode}</Text>
-        <Text style={styles.eventTitle}>Course: {item.courseCode}</Text>
-        <Text style={styles.eventTitle}>Period: {item.period}</Text>
-        <Text style={styles.eventTitle}>Building: {item.building}</Text>
-        <Text style={styles.eventTitle}>Room: {item.roomCode}</Text>
       </View>
     ))}
   </View>
