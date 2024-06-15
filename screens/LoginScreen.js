@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Image, ImageBackground, View, TouchableOpacity, Text, StyleSheet, Dimensions } from 'react-native';
+import { Alert, Image, ImageBackground, View, TouchableOpacity, Text, StyleSheet, Dimensions } from 'react-native';
 import { Checkbox, TextInput } from 'react-native-paper';
 import { firebase } from './FirebaseConfig';
 import { useNavigation } from '@react-navigation/native';
@@ -108,7 +108,9 @@ export default function LoginScreen({ navigation }) {
         await AsyncStorage.setItem('email', email);
         await AsyncStorage.setItem('password', password);
         saveDtrRecord(email);
-        navigation.navigate('Main');
+        Alert.alert("Success", "You have successfully timed in.", [
+          { text: "OK", onPress: () => navigation.navigate('Main') }
+        ]);
       } else {
         // Handle login failure
       }

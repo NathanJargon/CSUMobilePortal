@@ -90,6 +90,7 @@ function MyTabs() {
                     const userEmail = await AsyncStorage.getItem('email');
                     if (userEmail) {
                       await saveDtrRecord(userEmail);
+                      Alert.alert("Success", "You have successfully timed out."); 
                       navigation.navigate('Login');
                     } else {
                       console.error('No email found in AsyncStorage.');
