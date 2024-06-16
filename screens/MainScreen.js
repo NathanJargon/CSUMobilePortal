@@ -200,12 +200,15 @@ export default function MainScreen({ navigation }) {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>HOME — {userEmail}</Text>
-          <View style={styles.userSection}>
-            <TouchableOpacity onPress={pickImageAndUpdateProfile}>
-              <Image source={userProfileImage} style={styles.userImage} />
-            </TouchableOpacity>
-            <Text style={styles.userName}>{userPositionTitle} | {userFullName}</Text>
+        <View style={styles.userSection}>
+          <TouchableOpacity onPress={pickImageAndUpdateProfile}>
+            <Image source={userProfileImage} style={styles.userImage} />
+          </TouchableOpacity>
+          <View style={styles.userTextWrapper}>
+            <Text style={styles.userName}>{userFullName}</Text>
+            <Text style={styles.userPositionTitle}>{userPositionTitle}</Text>
           </View>
+        </View>
       </View>
       <View style={styles.schoolYearContainer}>
         <Text style={styles.schoolYearTitle}>SCHOOL YEAR</Text>
@@ -227,20 +230,26 @@ export default function MainScreen({ navigation }) {
         }}
       >
         <View style={styles.centeredView}>
-          <View style={styles.modalView}>
+          <View style={[styles.modalView, {height: selectedDayEvents.length > 0 ? 'auto' : 250}]}> 
             <Text style={styles.modalText}>Events:</Text>
             <ScrollView style={{width: '100%'}}>
-              {selectedDayEvents.map((event, index) => (
-                <View key={index} style={styles.eventItem}>
-                  <Text style={styles.eventText}>Details: {event.eventDetails}</Text>
-                  <Text style={styles.eventText}>Start Date: {event.eventStartDate}</Text>
-                  <Text style={styles.eventText}>End Date: {event.eventEndDate}</Text>
-                  <Text style={styles.eventText}>What: {event.eventWhat}</Text>
-                  <Text style={styles.eventText}>When: {event.eventWhen}</Text>
-                  <Text style={styles.eventText}>Where: {event.eventWhere}</Text>
-                  <Text style={styles.eventText}>Who: {event.eventWho}</Text>
+              {selectedDayEvents.length > 0 ? (
+                selectedDayEvents.map((event, index) => (
+                  <View key={index} style={styles.eventItem}>
+                    <Text style={styles.eventText}>Details: {event.eventDetails}</Text>
+                    <Text style={styles.eventText}>Start Date: {event.eventStartDate}</Text>
+                    <Text style={styles.eventText}>End Date: {event.eventEndDate}</Text>
+                    <Text style={styles.eventText}>What: {event.eventWhat}</Text>
+                    <Text style={styles.eventText}>When: {event.eventWhen}</Text>
+                    <Text style={styles.eventText}>Where: {event.eventWhere}</Text>
+                    <Text style={styles.eventText}>Who: {event.eventWho}</Text>
+                  </View>
+                ))
+              ) : (
+                <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}> 
+                  <Text style={[styles.eventText, {fontSize: 20, fontWeight: 'bold'}]}>No Event</Text> 
                 </View>
-              ))}
+              )}
             </ScrollView>
             <Button
               title="Close"
@@ -249,6 +258,7 @@ export default function MainScreen({ navigation }) {
           </View>
         </View>
       </Modal>
+
     </View>
   );
 }
@@ -265,7 +275,7 @@ export default function MainScreen({ navigation }) {
       borderBottomColor: '#E0E0E0', // Light grey color for the separator
     },
     header: {
-      height: '18%',
+      height: '20%',
       width: '100%',
       backgroundColor: '#1e69c4',
       borderBottomLeftRadius: 15,
@@ -279,9 +289,11 @@ export default function MainScreen({ navigation }) {
       marginTop: height * 0.05, 
     },
     userSection: {
-      flexDirection: 'row', 
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center', 
       marginLeft: width * 0.075,
-      marginTop: 5,
+      marginTop: 10,
     },
     userImage: {
       width: 50, 
@@ -289,15 +301,24 @@ export default function MainScreen({ navigation }) {
       borderRadius: 30, 
       marginRight: 10, 
     },
-    userName: {
-      fontSize: width * 0.03,
-      marginTop: height * 0.0125,
-      color: '#000',
-      backgroundColor: 'white',
+    userPositionTitle: {
+      fontSize: width * 0.05,
+      color: 'white',
+      fontFamily: 'Roboto', 
       fontWeight: 'bold',
-      padding: 10,
-      borderRadius: 10,
-      alignSelf: 'flex-start',
+    },
+    
+    userName: {
+      fontSize: width * 0.05,
+      color: 'white', 
+      fontFamily: 'Roboto',
+      fontWeight: 'bold', 
+    },
+    userTextWrapper: {
+      position: 'absolute', 
+      top: '5%',
+      left: 70, 
+      right: 0,
     },
     schoolYearContainer: {
       backgroundColor: 'white',
