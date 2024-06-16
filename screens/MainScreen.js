@@ -4,6 +4,7 @@ import { TextInput } from 'react-native-paper';
 import { firebase } from './FirebaseConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Calendar } from 'react-native-calendars'; 
+import * as ImagePicker from 'expo-image-picker';
 
 const { width, height } = Dimensions.get('window');
 
@@ -11,7 +12,86 @@ export default function MainScreen({ navigation }) {
   const [isModalVisible, setModalVisible] = useState(false);
   const [selectedDayEvents, setSelectedDayEvents] = useState([]);
   const [userEmail, setUserEmail] = useState('');
+  const [userPositionTitle, setUserPositionTitle] = useState('');
   const [allEvents, setAllEvents] = useState({});
+  const [userProfileImage, setUserProfileImage] = useState(require('../assets/icons/profilelogo.png'));
+
+  const uploadImageAndUpdateFirestore = async (imageUri) => {
+    console.log("Starting uploadImageAndUpdateFirestore with URI:", imageUri); // Log at start
+    try {
+      const response = await fetch(imageUri);
+      console.log("Fetched image response:", response); // Log after fetching image
+      const blob = await response.blob(); // Convert the image to a blob
+      console.log("Converted image to blob"); // Log after converting to blob
+      const storageRef = firebase.storage().ref(`profileImages/${userEmail}`);
+      const uploadTask = await storageRef.put(blob); // Use put method with the blob
+      console.log("Image uploaded to Firebase Storage"); // Log after upload
+      const downloadURL = await uploadTask.ref.getDownloadURL();  
+      console.log("Download URL received:", downloadURL); // Log download URL
+
+      const userDoc = await firebase.firestore()
+        .collection('teachers')
+        .where('employeeId', '==', userEmail)
+        .limit(1) // Optimized to limit the query
+        .get();
+      console.log("Fetched user document from Firestore"); // Log after fetching user doc
+
+      if (!userDoc.empty) {
+        const docId = userDoc.docs[0].id;
+        await firebase.firestore().collection('teachers').doc(docId).update({
+          imageUrl: downloadURL,
+        });
+        console.log('Firestore updated with image URL');
+      } else {
+        console.log("No matching user document found in Firestore"); // Log if no user doc found
+      }
+    } catch (error) {
+      console.error('Error uploading image and updating Firestore:', error);
+      alert('Failed to upload image. Please check your connection and try again.');
+      setUserProfileImage(require('../assets/icons/profilelogo.png'));
+    }
+  };
+
+  const pickImageAndUpdateProfile = async () => {
+    console.log("Requesting media library permissions");
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permissionResult.granted === false) {
+      alert("You've refused to allow this app to access your photos!");
+      return;
+    }
+    console.log("Media library permissions granted");
+
+    const pickerResult = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 1,
+    });
+
+    if (pickerResult.cancelled === true) {
+      console.log('User cancelled image picker');
+      return;
+    }
+
+    console.log('Image picker result:', pickerResult);
+
+    // Adjusted to handle the assets array
+    if (pickerResult.assets && pickerResult.assets.length > 0) {
+      const pickedImageUri = pickerResult.assets[0].uri;
+      console.log("Image picked:", pickedImageUri);
+
+      const source = { uri: pickedImageUri };
+      setUserProfileImage(source); // Update local UI immediately
+      console.log("Local UI updated with new profile image");
+
+      // Call the function to upload image and update Firestore
+      await uploadImageAndUpdateFirestore(pickedImageUri);
+    } else {
+      console.log("Image picker did not return a valid URI.");
+      // Handle the case where no valid URI is returned
+      alert('Failed to pick an image. Please try again.');
+    }
+  };
 
   useEffect(() => {
     const backAction = async () => {
@@ -39,7 +119,9 @@ export default function MainScreen({ navigation }) {
 
     const fetchEmail = async () => {
       const email = await AsyncStorage.getItem('email'); 
+      const positionTitle = await AsyncStorage.getItem('positionTitle'); 
       setUserEmail(email || 'No Email'); 
+      setUserPositionTitle(positionTitle || 'Employee');
     };
 
     fetchEmail();
@@ -110,10 +192,12 @@ export default function MainScreen({ navigation }) {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>HOME</Text>
-        <View style={styles.userSection}>
-          <Image source={require('../assets/icons/profilelogo.png')} style={styles.userImage} />
-          <Text style={styles.userName}>{userEmail}</Text>
-        </View>
+          <View style={styles.userSection}>
+            <TouchableOpacity onPress={pickImageAndUpdateProfile}>
+              <Image source={userProfileImage} style={styles.userImage} />
+            </TouchableOpacity>
+            <Text style={styles.userName}>{userPositionTitle} {userEmail}</Text>
+          </View>
       </View>
       <View style={styles.schoolYearContainer}>
         <Text style={styles.schoolYearTitle}>SCHOOL YEAR</Text>
