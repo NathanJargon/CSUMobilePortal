@@ -42,6 +42,11 @@ export default function VoluntaryPage({ navigation }) {
   };
 
   const handleSubmit = async () => {
+    if (!selectedDocumentName) {
+      Alert.alert("Error", "Please select a document to update.");
+      return;
+    }
+    
     const db = firebase.firestore();
     const docRef = db.collection('pds').doc(selectedDocumentName);
 

@@ -15,6 +15,7 @@ export default function SubjectScreen({ navigation }) {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [classCode, setClassCode] = useState('');
   const editIcon = require('../assets/icons/edit.png');
+
   useEffect(() => {
     const checkIfSubjectBelongsToUser = async () => {
       const userEmail = await AsyncStorage.getItem('email');
@@ -218,6 +219,12 @@ export default function SubjectScreen({ navigation }) {
     <View style={styles.header}>
       <Text style={styles.headerTitle}>GRADES</Text>
     </View>
+    <TouchableOpacity
+      style={styles.addButton}
+      onPress={() => navigation.navigate('Attendance', { subjects })}
+    >
+      <Text style={styles.addButtonText}>Check Attendance</Text>
+    </TouchableOpacity>
     <TouchableOpacity
       style={styles.addButton}
       onPress={() => setModalVisible(true)}

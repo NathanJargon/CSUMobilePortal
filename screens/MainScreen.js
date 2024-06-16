@@ -15,6 +15,7 @@ export default function MainScreen({ navigation }) {
   const [userPositionTitle, setUserPositionTitle] = useState('');
   const [allEvents, setAllEvents] = useState({});
   const [userProfileImage, setUserProfileImage] = useState(require('../assets/icons/profilelogo.png'));
+  const [userFullName, setUserFullName] = useState('');
 
   const uploadImageAndUpdateFirestore = async (imageUri) => {
     console.log("Starting uploadImageAndUpdateFirestore with URI:", imageUri); // Log at start
@@ -120,8 +121,15 @@ export default function MainScreen({ navigation }) {
     const fetchEmail = async () => {
       const email = await AsyncStorage.getItem('email'); 
       const positionTitle = await AsyncStorage.getItem('positionTitle'); 
+      const imageUrl = await AsyncStorage.getItem('imageUrl');
+      const fullName = await AsyncStorage.getItem('fullName');
+
       setUserEmail(email || 'No Email'); 
       setUserPositionTitle(positionTitle || 'Employee');
+      if (imageUrl) {
+        setUserProfileImage({ uri: imageUrl });
+      }
+      setUserFullName(fullName || 'First Last Name');
     };
 
     fetchEmail();
@@ -191,12 +199,12 @@ export default function MainScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>HOME</Text>
+        <Text style={styles.headerTitle}>HOME — {userEmail}</Text>
           <View style={styles.userSection}>
             <TouchableOpacity onPress={pickImageAndUpdateProfile}>
               <Image source={userProfileImage} style={styles.userImage} />
             </TouchableOpacity>
-            <Text style={styles.userName}>{userPositionTitle} {userEmail}</Text>
+            <Text style={styles.userName}>{userPositionTitle} | {userFullName}</Text>
           </View>
       </View>
       <View style={styles.schoolYearContainer}>
@@ -282,8 +290,8 @@ export default function MainScreen({ navigation }) {
       marginRight: 10, 
     },
     userName: {
-      fontSize: width * 0.05,
-      marginTop: height * 0.005,
+      fontSize: width * 0.03,
+      marginTop: height * 0.0125,
       color: '#000',
       backgroundColor: 'white',
       fontWeight: 'bold',

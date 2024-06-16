@@ -24,6 +24,7 @@ import WorkPage from './screens/WorkPage';
 import VoluntaryPage from './screens/VoluntaryPage';
 import LearningPage from './screens/LearningPage';
 import OtherPage from './screens/OtherPage';
+import AttendancePage from './screens/AttendancePage';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -87,6 +88,30 @@ function MyTabs() {
       <Tab.Screen
         name="Log Out"
         component={LoginScreen} 
+        listeners={{
+          tabPress: e => {
+            e.preventDefault(); 
+            Alert.alert(
+              "Log Out", 
+              "Are you sure you want to log out?", 
+              [
+                { text: "Cancel", style: "cancel" },
+                { text: "Log Out", onPress: async () => {
+                  try {
+                    const userEmail = await AsyncStorage.getItem('email');
+                    if (userEmail) {
+                      navigation.navigate('Login');
+                    } else {
+                      console.error('No email found in AsyncStorage.');
+                    }
+                  } catch (error) {
+                    console.error('Error during logout: ', error);
+                  }
+                }},
+              ]
+            );
+          },
+        }}
         options={{
           tabBarIcon: ({ color, size }) => (
             <Image source={require('./assets/icons/logout.png')} style={{ width: size, height: size, tintColor: color }} />
@@ -101,7 +126,7 @@ function SubjectStackScreen() {
   return (
     <SubjectStack.Navigator screenOptions={{ headerShown: false }}>
       <SubjectStack.Screen name="SubjectDetails" component={SubjectScreen} />
-      {/* You can add more screens here that should be accessible from SubjectScreen */}
+      <SubjectStack.Screen name="Attendance" component={AttendancePage} />
     </SubjectStack.Navigator>
   );
 }

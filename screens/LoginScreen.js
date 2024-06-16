@@ -69,9 +69,13 @@ export default function LoginScreen({ navigation }) {
 
       if (userDoc) {
         const positionTitle = userDoc.data().positionTitle; 
+        const imageUrl = userDoc.data().imageUrl;
+        const fullName = userDoc.data().firstName + ' ' +  userDoc.data().middleName + ' ' + userDoc.data().lastName;
         await AsyncStorage.setItem('email', email);
         await AsyncStorage.setItem('password', password);
         await AsyncStorage.setItem('positionTitle', positionTitle); 
+        await AsyncStorage.setItem('imageUrl', imageUrl);
+        await AsyncStorage.setItem('fullName', fullName);
         navigation.navigate('Main');
       } else {
         // Handle login failure
