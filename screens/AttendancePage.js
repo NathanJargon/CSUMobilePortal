@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, TextInput, View, StyleSheet, Text, FlatList, TouchableOpacity, BackHandler, Dimensions, Platform } from 'react-native';
+import { Alert, Modal, TextInput, View, StyleSheet, Text, FlatList, TouchableOpacity, BackHandler, Dimensions, Platform } from 'react-native';
 import { firebase } from './FirebaseConfig';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { Provider, Menu, Button } from 'react-native-paper';
 import { Picker } from '@react-native-picker/picker';
-
+import * as Print from 'expo-print';
 
 const { width, height } = Dimensions.get('window');
 
@@ -153,59 +153,56 @@ export default function AttendancePage({ navigation, route }) {
     }
   };
 
-  const fetchDataAndGenerateTextFile = async () => {
-      try {
-        // Step 1: Fetch class and subject details
-        const querySnapshot = await firebase.firestore().collection('subjects')
-          .where('classCode', '==', classCode).get();
-        
-        if (querySnapshot.empty) {
-          console.log('No subject found with the classCode:', classCode);
-          return;
-        }
-
-        const subjectDoc = querySnapshot.docs[0].data();
-        const studentsCollectionRef = querySnapshot.docs[0].ref.collection(classCode);
-        const studentDocsSnapshot = await studentsCollectionRef.get();
-        const students = [];
-
-        // Fetch each student's document from the subcollection
-        studentDocsSnapshot.forEach(doc => {
-          let studentData = doc.data();
-          studentData.attendance = studentData.attendance || ["0", "0", "0", "0"]; // Default attendance if not present
-          students.push(studentData);
-        });
-
-        const totalAbsences = subjectDoc.totalAbsences || 0;
-        const totalDaysPresent = subjectDoc.totalDaysPresent || 0;
-
-        // Step 2: Process fetched data for text file content
-        const header = `Class Code: ${classCode}\nPeriod: ${schedule.period}\nInstructor: ${subjectDoc.name}\n\n`;
-        const sortedStudents = students.sort((a, b) => a.name.localeCompare(b.name));
-        const attendanceRecordsString = sortedStudents.map(student => {
-          const records = student.attendance.join(', '); // No need to check for 'No records' as we default to ["0", "0", "0", "0"]
-          return `${student.name}: ${records}`;
-        }).join('\n');
-        const totals = `\n\nTotal No. of Absences: ${totalAbsences}\nTotal No. of Days Present: ${totalDaysPresent}`;
-        const legend = `\n\nLegend:\ngreen (1st element) - present\nred (2nd element) - absent\nblue (3rd element) - excuse\nyellow (4th element) - late`;
-        const content = `${header}${attendanceRecordsString}${totals}${legend}`;
-
-        console.log("Header:", header);
-        console.log("Attendance Records:", attendanceRecordsString);
-        console.log("Totals:", totals);
-        console.log("Legend:", legend);
-
-        // Step 3: Generate the text file
-        const fileUri = `${FileSystem.documentDirectory}attendance.txt`;
-        await FileSystem.writeAsStringAsync(fileUri, content);
-
-        // Step 4: Share or save the text file
-        await Sharing.shareAsync(fileUri);
-        console.log('Text file generated and shared successfully.');
-      } catch (error) {
-        console.error("Error fetching data or generating text file:", error);
+  const fetchDataAndGeneratePDF = async () => {
+    try {
+      const querySnapshot = await firebase.firestore().collection('subjects')
+        .where('classCode', '==', classCode).get();
+      
+      if (querySnapshot.empty) {
+        console.log('No subject found with the classCode:', classCode);
+        return;
       }
-    };
+
+      const subjectDoc = querySnapshot.docs[0].data();
+      const studentsCollectionRef = querySnapshot.docs[0].ref.collection(classCode);
+      const studentDocsSnapshot = await studentsCollectionRef.get();
+      const students = [];
+
+      studentDocsSnapshot.forEach(doc => {
+        let studentData = doc.data();
+        studentData.attendance = studentData.attendance || ["0", "0", "0", "0"];
+        students.push(studentData);
+      });
+
+      const totalAbsences = subjectDoc.totalAbsences || 0;
+      const totalDaysPresent = subjectDoc.totalDaysPresent || 0;
+
+      const header = `<h1>Class Code: ${classCode}</h1><h2>Period: ${schedule.period}</h2><h3>Instructor: ${subjectDoc.name}</h3><br>`;
+      const sortedStudents = students.sort((a, b) => a.name.localeCompare(b.name));
+      const attendanceRecordsString = sortedStudents.map(student => {
+        const records = student.attendance.join(', ');
+        return `<p>${student.name}: ${records}</p>`;
+      }).join('');
+      const totals = `<br><p>Total No. of Absences: ${totalAbsences}</p><p>Total No. of Days Present: ${totalDaysPresent}</p>`;
+      const legend = `<br><p>Legend:</p><ul><li>green (1st element) - present</li><li>red (2nd element) - absent</li><li>blue (3rd element) - excuse</li><li>yellow (4th element) - late</li></ul>`;
+      const htmlContent = `${header}${attendanceRecordsString}${totals}${legend}`;
+
+      const { uri } = await Print.printToFileAsync({ html: htmlContent });
+      console.log('PDF generated at:', uri);
+
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const storageRef = firebase.storage().ref();
+      const fileRef = storageRef.child(`attendance_files/${classCode}_attendance_record.pdf`);
+      await fileRef.put(blob);
+      await Print.printAsync({ uri });
+
+      Alert.alert('Success', 'Attendance PDF generated and uploaded to Firebase Storage successfully.');
+    } catch (error) {
+      console.error("Error fetching data or generating PDF:", error);
+      Alert.alert('Error', 'There was an issue generating or uploading the attendance PDF.');
+    }
+  };
 
   return (
     <Provider>
@@ -248,7 +245,7 @@ export default function AttendancePage({ navigation, route }) {
             <TouchableOpacity onPress={() => { setTotalModalVisible(true); setSelectedTotalType('present'); }} style={styles.buttonStyle}>
               <Text style={[styles.headerText, { marginBottom: 0, color: 'white' }]}>Total No. of Days Present: {totalDaysPresent}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.button} onPress={fetchDataAndGenerateTextFile}>
+            <TouchableOpacity style={styles.button} onPress={fetchDataAndGeneratePDF}>
               <Text style={styles.buttonText}>Generate Text File</Text>
             </TouchableOpacity>
           </>

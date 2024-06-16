@@ -4343,6 +4343,11 @@ expo-modules-core@1.11.13:
   dependencies:
     invariant "^2.2.4"
 
+expo-print@^13.0.1:
+  version "13.0.1"
+  resolved "https://registry.yarnpkg.com/expo-print/-/expo-print-13.0.1.tgz#2fe419593aa812642f4ad7057928d2e712578e97"
+  integrity sha512-o8LuCguGrkyC5RaWEfL5N2J0V9mfbZ3GVzLpaf3KU5RrdYzGEjoiv4xlhVVzh/++hMUqOgnIrtF7tzWYhwu/7g==
+
 expo-sharing@^12.0.1:
   version "12.0.1"
   resolved "https://registry.yarnpkg.com/expo-sharing/-/expo-sharing-12.0.1.tgz#6c4d951beda47dac47112e679d60fc06c233b7aa"
@@ -6896,6 +6901,11 @@ react-native-pdf-lib@^1.0.0:
   integrity sha512-XJ8d9gWbpVYLeS9kC/h/MY+lLKVWZfPiGJBrE9lz4pnVWiFwbH76LA3lGVurKlPxgcm/FZNzaXSKAcSYeDs+BA==
   dependencies:
     babel-preset-flow "^6.23.0"
+
+react-native-print@^0.11.0:
+  version "0.11.0"
+  resolved "https://registry.yarnpkg.com/react-native-print/-/react-native-print-0.11.0.tgz#3dc69fb05552f0c5da5be0dd345a93e1604621d1"
+  integrity sha512-hFDzb9dVJVT8c3VHNNWgkPfLF3Jfyw0WVJ3o7wUmSMmi5hJx6b++veNJ3J95d3lW3Y0sZUpGbn9+yzXrLANnJQ==
 
 react-native-safe-area-context@4.8.2:
   version "4.8.2"
