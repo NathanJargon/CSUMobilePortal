@@ -13,33 +13,22 @@ import LoginScreen from './screens/LoginScreen';
 import ClassesScreen from './screens/ClassesScreen';
 import SubjectScreen from './screens/SubjectScreen';
 import ScheduleScreen from './screens/ScheduleScreen';
+import DTRScreen from './screens/DTRScreen';
+import PDSScreen from './screens/PDSScreen';
+import PersonalInformationPage from './screens/PersonalInformation';
+import FamilyBackgroundPage from './screens/FamilyBackground';
+import ChildrenPage from './screens/ChildrenPage';
+import EducationPage from './screens/EducationPage';
+import CivilPage from './screens/CivilPage';
+import WorkPage from './screens/WorkPage';
+import VoluntaryPage from './screens/VoluntaryPage';
+import LearningPage from './screens/LearningPage';
+import OtherPage from './screens/OtherPage';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 const SubjectStack = createStackNavigator();
-
-const saveDtrRecord = async (email) => {
-  const now = new Date();
-  const date = now.toISOString().split('T')[0]; // Format as YYYY-MM-DD
-  const time = now.toTimeString().split(' ')[0]; // Format as HH:MM:SS
-  const isMorning = now.getHours() < 12;
-
-  let dtrUpdate = isMorning ? { amOut: time } : { pmOut: time };
-  const documentName = `${email}-${date}`;
-  const docRef = firebase.firestore().collection('dtr').doc(documentName);
-
-  try {
-    const doc = await docRef.get();
-    if (doc.exists) {
-      await docRef.update(dtrUpdate);
-      console.log('DTR record updated successfully with name:', documentName);
-    } else {
-      console.error('DTR record does not exist for today.');
-    }
-  } catch (error) {
-    console.error('Error saving DTR record: ', error);
-  }
-};
+const PDSStack = createStackNavigator();
 
 function MyTabs() {
   const navigation = useNavigation(); 
@@ -74,35 +63,30 @@ function MyTabs() {
           ),
         }}
       />
+      
+      <Tab.Screen 
+        name="DTR" 
+        component={DTRScreen} 
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Image source={require('./assets/icons/dtr.png')} style={{ width: size, height: size, tintColor: color }} />
+          ),
+        }}
+      />
+
+      <Tab.Screen 
+        name="PDS" 
+        component={PDSScreen} 
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Image source={require('./assets/icons/information-button.png')} style={{ width: size, height: size, tintColor: color }} />
+          ),
+        }}
+      />
+
       <Tab.Screen
         name="Log Out"
         component={LoginScreen} 
-        listeners={{
-          tabPress: e => {
-            e.preventDefault(); 
-            Alert.alert(
-              "Log Out", 
-              "Are you sure you want to log out?", 
-              [
-                { text: "Cancel", style: "cancel" },
-                { text: "Log Out", onPress: async () => {
-                  try {
-                    const userEmail = await AsyncStorage.getItem('email');
-                    if (userEmail) {
-                      await saveDtrRecord(userEmail);
-                      Alert.alert("Success", "You have successfully timed out."); 
-                      navigation.navigate('Login');
-                    } else {
-                      console.error('No email found in AsyncStorage.');
-                    }
-                  } catch (error) {
-                    console.error('Error during logout: ', error);
-                  }
-                }},
-              ]
-            );
-          },
-        }}
         options={{
           tabBarIcon: ({ color, size }) => (
             <Image source={require('./assets/icons/logout.png')} style={{ width: size, height: size, tintColor: color }} />
@@ -119,6 +103,26 @@ function SubjectStackScreen() {
       <SubjectStack.Screen name="SubjectDetails" component={SubjectScreen} />
       {/* You can add more screens here that should be accessible from SubjectScreen */}
     </SubjectStack.Navigator>
+  );
+}
+
+function PDSStackScreen({ route }) {
+  const initialRouteName = route.params?.screen || 'Personal Information';
+  console.log("Route Name:", initialRouteName);
+
+  return (
+    <PDSStack.Navigator initialRouteName={initialRouteName} screenOptions={{ headerShown: false }}>
+      <PDSStack.Screen name="Personal Information" component={PersonalInformationPage} />
+      <PDSStack.Screen name="Family Background" component={FamilyBackgroundPage} />
+      <PDSStack.Screen name="Name of Children" component={ChildrenPage} />
+      <PDSStack.Screen name="Educational Background" component={EducationPage} />
+      <PDSStack.Screen name="Civil Service Eligibility" component={CivilPage} />
+      <PDSStack.Screen name="Work Experience" component={WorkPage} />
+      <PDSStack.Screen name="Voluntary Work or Involvement" component={VoluntaryPage} />
+      <PDSStack.Screen name="Learning and Development" component={LearningPage} />
+      <PDSStack.Screen name="Other Information" component={OtherPage} />
+      {/* Add more screens here */}
+    </PDSStack.Navigator>
   );
 }
 
@@ -139,6 +143,11 @@ export default function App() {
         <Stack.Screen 
           name="Subject" 
           component={SubjectStackScreen} 
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="PDSDetail" 
+          component={PDSStackScreen} 
           options={{ headerShown: false }}
         />
       </Stack.Navigator>
