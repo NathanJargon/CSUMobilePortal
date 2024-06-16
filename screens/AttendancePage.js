@@ -100,10 +100,9 @@ export default function AttendancePage({ navigation, route }) {
     setModalVisible(true);
   };  
 
-  const submitAttendance = async () => {
+  const submitAttendance = async (newValue) => {
     if (!selectedStudent) return;
-
-    // Query the subjects collection for documents where the classCode field matches the provided classCode
+    const parsedNewValue = parseInt(newValue, 10);
     const querySnapshot = await firebase.firestore().collection('subjects')
       .where('classCode', '==', classCode).get();
 
@@ -118,19 +117,19 @@ export default function AttendancePage({ navigation, route }) {
         const studentDocRef = studentDoc.ref;
         let attendance = studentDoc.data().attendance || [0, 0, 0, 0];
 
-        // Map status to index: present -> 0, absent -> 1, excuse -> 2, late -> 3
         const statusIndexMap = { present: 0, absent: 1, excuse: 2, late: 3 };
         const index = statusIndexMap[selectedStudent.status];
 
-        // Increment the specific index based on the status
-        if (index !== undefined) {
-          attendance[index] += 1;
+        if (index !== undefined && !isNaN(parsedNewValue)) {
+          // Update the specific index with parsedNewValue
+          attendance[index] = parsedNewValue;
         }
 
         studentDocRef.update({
           attendance: attendance
         }).then(() => {
           console.log('Attendance updated for', selectedStudent.name);
+          setSelectedWeek('');
           setModalVisible(false);
         }).catch((error) => {
           console.error("Error updating document:", error);
@@ -153,7 +152,10 @@ export default function AttendancePage({ navigation, route }) {
     }
   };
 
-  const fetchDataAndGeneratePDF = async () => {
+const fetchDataAndGeneratePDF = async () => {
+    let totalClassAbsences = 0;
+    let totalClassPresence = 0;
+
     try {
       const querySnapshot = await firebase.firestore().collection('subjects')
         .where('classCode', '==', classCode).get();
@@ -177,15 +179,60 @@ export default function AttendancePage({ navigation, route }) {
       const totalAbsences = subjectDoc.totalAbsences || 0;
       const totalDaysPresent = subjectDoc.totalDaysPresent || 0;
 
-      const header = `<h1>Class Code: ${classCode}</h1><h2>Period: ${schedule.period}</h2><h3>Instructor: ${subjectDoc.name}</h3><br>`;
-      const sortedStudents = students.sort((a, b) => a.name.localeCompare(b.name));
-      const attendanceRecordsString = sortedStudents.map(student => {
-        const records = student.attendance.join(', ');
-        return `<p>${student.name}: ${records}</p>`;
+      const header = `<h1 style="text-align:center;">Class Code: ${classCode}</h1><h2 style="text-align:center;">Period: ${schedule.period}</h2><h3 style="text-align:center;">Instructor: ${subjectDoc.name}</h3><br>`;
+      const style = `<style>
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 0 auto;
+        }
+        th, td {
+          border: 1px solid black;
+          text-align: center;
+          padding: 8px;
+        }
+        tr:nth-child(even) {background-color: #f2f2f2;}
+      </style>`;
+      students.sort((a, b) => a.name.localeCompare(b.name));
+
+      // Update the table header to include new columns for totals
+      const attendanceTableHeader = `<table><tr><th>Student Name</th><th>Present</th><th>Absent</th><th>Excuse</th><th>Late</th><th>Total No. of Present</th><th>Total No. of Absence</th><th>Total No. of Excuse</th><th>Total No. of Late</th></tr>`;
+
+      const attendanceTableRows = students.map(student => {
+        // Initialize counters for each type
+        let studentPresence = 0;
+        let studentAbsence = 0;
+        let studentExcuse = 0;
+        let studentLate = 0;
+
+        // Calculate totals for each student
+        student.attendance.forEach(status => {
+          if (status === "1") studentPresence++;
+          else if (status === "0") studentAbsence++;
+          else if (status === "E") studentExcuse++;
+          else if (status === "L") studentLate++;
+        });
+
+        // Update class totals
+        totalClassAbsences += studentAbsence;
+        totalClassPresence += studentPresence;
+
+        // Generate table row for the student with totals
+        const records = `<td>${studentPresence}</td><td>${studentAbsence}</td><td>${studentExcuse}</td><td>${studentLate}</td><td>${studentPresence}</td><td>${studentAbsence}</td><td>${studentExcuse}</td><td>${studentLate}</td>`;
+        return `<tr><td>${student.name}</td>${records}</tr>`;
       }).join('');
-      const totals = `<br><p>Total No. of Absences: ${totalAbsences}</p><p>Total No. of Days Present: ${totalDaysPresent}</p>`;
-      const legend = `<br><p>Legend:</p><ul><li>green (1st element) - present</li><li>red (2nd element) - absent</li><li>blue (3rd element) - excuse</li><li>yellow (4th element) - late</li></ul>`;
-      const htmlContent = `${header}${attendanceRecordsString}${totals}${legend}`;
+
+      // Adjust the classTotalsRow to include totals for excuses and lates
+      const classTotalsRow = `<tr style="font-weight:bold;"><td>Total</td><td>${totalClassPresence}</td><td>${totalClassAbsences}</td><td></td><td></td><td>${totalClassPresence}</td><td>${totalClassAbsences}</td><td></td><td></td></tr>`;
+
+      const attendanceTableFooter = `</table>`;
+      const attendanceTable = `${attendanceTableHeader}${attendanceTableRows}${attendanceTableFooter}`;
+      
+
+      const totals = `<br><p style="text-align:center;">Total No. of Absences: ${totalClassAbsences}</p><p style="text-align:center;">Total No. of Days Present: ${totalClassPresence}</p>`;
+
+      const legend = `<br><p style="text-align:center;">Legend:</p><ul style="list-style-type:none; text-align:center;"><li>1 - present</li><li>0 - absent</li><li>Excuse and Late are marked accordingly</li></ul>`;
+      const htmlContent = `${style}${header}${attendanceTable}`;
 
       const { uri } = await Print.printToFileAsync({ html: htmlContent });
       console.log('PDF generated at:', uri);
@@ -201,6 +248,35 @@ export default function AttendancePage({ navigation, route }) {
     } catch (error) {
       console.error("Error fetching data or generating PDF:", error);
       Alert.alert('Error', 'There was an issue generating or uploading the attendance PDF.');
+    }
+  };
+
+  const updateSubjectTotals = async (newValue, type) => {
+    try {
+      // Fetch the subject document using the classCode
+      const querySnapshot = await firebase.firestore().collection('subjects')
+        .where('classCode', '==', classCode).get();
+
+      if (!querySnapshot.empty) {
+        const subjectDocRef = querySnapshot.docs[0].ref;
+
+        // Prepare the update object based on the type parameter
+        const updateObject = {};
+        if (type === 'absences') {
+          updateObject.totalAbsences = parseInt(newValue, 10);
+        } else if (type === 'present') {
+          updateObject.totalDaysPresent = parseInt(newValue, 10);
+        }
+
+        // Update the document
+        await subjectDocRef.update(updateObject);
+        type === 'absences' ? setTotalAbsences(newValue) : setTotalDaysPresent(newValue);
+        console.log(`Successfully updated total number of ${type}.`);
+      } else {
+        console.log('No subject found with the classCode:', classCode);
+      }
+    } catch (error) {
+      console.error("Error updating subject totals:", error);
     }
   };
 
@@ -239,14 +315,16 @@ export default function AttendancePage({ navigation, route }) {
         )}
         ListFooterComponent={
           <>
+            { /*
             <TouchableOpacity onPress={() => { setTotalModalVisible(true); setSelectedTotalType('absences'); }} style={styles.buttonStyle}>
               <Text style={[styles.headerText, { marginBottom: 0, color: 'white' }]}>Total No. of Absences: {totalAbsences}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => { setTotalModalVisible(true); setSelectedTotalType('present'); }} style={styles.buttonStyle}>
               <Text style={[styles.headerText, { marginBottom: 0, color: 'white' }]}>Total No. of Days Present: {totalDaysPresent}</Text>
             </TouchableOpacity>
+            */ }
             <TouchableOpacity style={styles.button} onPress={fetchDataAndGeneratePDF}>
-              <Text style={styles.buttonText}>Generate Text File</Text>
+              <Text style={styles.buttonText}>Generate and Print PDF File</Text>
             </TouchableOpacity>
           </>
         }
@@ -264,18 +342,23 @@ export default function AttendancePage({ navigation, route }) {
       >
         <View style={styles.centeredView}>
           <View style={styles.modalView}>
-            <Text style={styles.modalText}>Student {selectedStudent?.status} on week:</Text>
+            <Text style={styles.modalText}>Student's {selectedStudent?.status}:</Text>
             <TextInput
               style={styles.input}
               onChangeText={setSelectedWeek}
               value={selectedWeek}
               keyboardType="numeric"
               maxLength={1} 
-              placeholder="Enter Week No."
+              placeholder={
+                selectedStudent?.status === 'absent' ? 'Enter Number of Absences' :
+                selectedStudent?.status === 'excuse' ? 'Enter Number of Excused Absences' :
+                selectedStudent?.status === 'late' ? 'Enter Number of Lates' :
+                'Enter Number of Days Present'
+              }
             />
-            <TouchableOpacity style={styles.submitButton} onPress={submitAttendance}>
-              <Text style={styles.submitButtonText}>Submit</Text>
-            </TouchableOpacity>
+          <TouchableOpacity style={styles.submitButton} onPress={() => submitAttendance(selectedWeek)}>
+            <Text style={styles.submitButtonText}>Submit</Text>
+          </TouchableOpacity>
           </View>
         </View>
       </Modal>
