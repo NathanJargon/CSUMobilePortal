@@ -172,7 +172,8 @@ const fetchDataAndGeneratePDF = async () => {
 
       studentDocsSnapshot.forEach(doc => {
         let studentData = doc.data();
-        studentData.attendance = studentData.attendance || ["0", "0", "0", "0"];
+        // Ensure attendance is an array of numbers, defaulting to 0 if undefined
+        studentData.attendance = studentData.attendance ? studentData.attendance.map(Number) : [0, 0, 0, 0];
         students.push(studentData);
       });
 
@@ -199,19 +200,16 @@ const fetchDataAndGeneratePDF = async () => {
       const attendanceTableHeader = `<table><tr><th>Student Name</th><th>Present</th><th>Absent</th><th>Excuse</th><th>Late</th><th>Total No. of Present</th><th>Total No. of Absence</th><th>Total No. of Excuse</th><th>Total No. of Late</th></tr>`;
 
       const attendanceTableRows = students.map(student => {
-        // Initialize counters for each type
-        let studentPresence = 0;
-        let studentAbsence = 0;
-        let studentExcuse = 0;
-        let studentLate = 0;
+        let studentPresence = Number(student.attendance[0]) || 0;
+        let studentAbsence = Number(student.attendance[1]) || 0;
+        let studentExcuse = Number(student.attendance[2]) || 0;
+        let studentLate = Number(student.attendance[3]) || 0;
+      
 
-        // Calculate totals for each student
-        student.attendance.forEach(status => {
-          if (status === "1") studentPresence++;
-          else if (status === "0") studentAbsence++;
-          else if (status === "E") studentExcuse++;
-          else if (status === "L") studentLate++;
-        });
+        studentPresence = student.attendance[0] || 0;
+        studentAbsence = student.attendance[1] || 0;
+        studentExcuse = student.attendance[2] || 0;
+        studentLate = student.attendance[3] || 0;
 
         // Update class totals
         totalClassAbsences += studentAbsence;

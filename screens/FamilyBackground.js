@@ -75,14 +75,18 @@ export default function FamilyBackgroundPage({ navigation }) {
   const openMenu = () => setMenuVisible(true);
   const closeMenu = () => setMenuVisible(false);
 
-  return (
+return (
     <Provider>
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.header}>Family Background</Text>
         <Menu
           visible={menuVisible}
           onDismiss={closeMenu}
-          anchor={<Button onPress={openMenu}>Select Document to Update</Button>}>
+          anchor={
+            <Button onPress={openMenu}>
+              {selectedDocumentName ? selectedDocumentName + "'s document will be updated" : 'Select Document to Update'}
+            </Button>
+          }>
           {documents.map((doc) => (
             <Menu.Item key={doc.id} onPress={() => setSelectedDocumentName(doc.id)} title={doc.id} />
           ))}

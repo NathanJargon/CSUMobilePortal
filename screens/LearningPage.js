@@ -78,7 +78,11 @@ export default function LearningPage({ navigation }) {
         <Menu
           visible={menuVisible}
           onDismiss={closeMenu}
-          anchor={<Button onPress={openMenu}>Select Document to Update</Button>}>
+          anchor={
+            <Button onPress={openMenu}>
+              {selectedDocumentName ? selectedDocumentName + "'s document will be updated" : 'Select Document to Update'}
+            </Button>
+          }>
           {documents.map((doc) => (
             <Menu.Item key={doc.id} onPress={() => setSelectedDocumentName(doc.id)} title={doc.id} />
           ))}

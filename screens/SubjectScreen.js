@@ -13,38 +13,22 @@ export default function SubjectScreen({ navigation }) {
   const [studentGrade, setStudentGrade] = useState('');
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
-  const [classCode, setClassCode] = useState('');
+  const [classCode, setClassCode] = useState(''); 
   const editIcon = require('../assets/icons/edit.png');
 
   useEffect(() => {
-    const checkIfSubjectBelongsToUser = async () => {
-      const userEmail = await AsyncStorage.getItem('email');
-      if (!userEmail) {
-        console.log("User email not found.");
-        return;
-      }
-
-      const querySnapshot = await firebase.firestore()
-        .collection('subjects')
-        .where('employeeId', '==', userEmail)
-        .get();
-
-      if (querySnapshot.empty) {
-        console.log("No subjects found for this user.");
-        return;
-      }
-
-      for (const doc of querySnapshot.docs) {
-        console.log(`Subject ID: ${doc.id}, Name: ${doc.data().name}, Class Code: ${doc.data().classCode} belongs to the user.`);
-        setSelectedSubjectId(doc.id);
-        // Assuming you have a state setter for classCode
-        setClassCode(doc.data().classCode);
-        console.log("Class Code:", classCode);
-        break; // This will only set the classCode for the first subject found, remove break if you want to set it for the last
+    const getSubjectFromStorage = async () => {
+      try {
+        const foundClassCode = await AsyncStorage.getItem('classCode');
+        // Ensure classCode is treated as a string
+        if (foundClassCode) setClassCode(foundClassCode.toString());
+        console.log(foundClassCode)
+      } catch (error) {
+        console.error("Error retrieving subject from AsyncStorage:", error);
       }
     };
-
-    checkIfSubjectBelongsToUser();
+  
+    getSubjectFromStorage();
   }, []);
 
   const fetchSubjectsAndStudents = async () => {
@@ -62,12 +46,12 @@ export default function SubjectScreen({ navigation }) {
         ...doc.data(),
       };
 
-      // Fetch students from the subcollection named after classCode
+      // Fetch students for the subject based on its classCode
       try {
         const studentsSnapshot = await firebase.firestore()
           .collection('subjects')
           .doc(doc.id)
-          .collection(subject.classCode)
+          .collection(classCode) // Use the classCode to specify the subcollection
           .get();
 
         const students = studentsSnapshot.empty ? [] : studentsSnapshot.docs.map(studentDoc => ({
@@ -77,7 +61,6 @@ export default function SubjectScreen({ navigation }) {
 
         return { ...subject, students };
       } catch (error) {
-        console.error("Error fetching students for subject:", subject.id, error);
         return { ...subject, students: [] };
       }
     }));
@@ -87,7 +70,7 @@ export default function SubjectScreen({ navigation }) {
 
   useEffect(() => {
     fetchSubjectsAndStudents();
-  }, []);
+  }, [classCode]);
 
   useEffect(() => {
     const backAction = () => {
@@ -136,9 +119,6 @@ export default function SubjectScreen({ navigation }) {
         console.error("No matching subject found for the given ID.");
         return;
       }
-
-      // Use the class code as the name of the subcollection
-      const classCode = subjectDoc.data().classCode;
 
       // This line will create the subcollection and document if they don't exist
       const docRef = await subjectsRef.doc(selectedSubjectId).collection(classCode).add({

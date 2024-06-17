@@ -51,13 +51,26 @@ export default function ClassesScreen({ navigation }) {
     }
   };
 
+  const handlePress = async (subject) => {
+    try {
+      await AsyncStorage.setItem('classCode', subject.classCode); // Save classCode in AsyncStorage
+      navigation.navigate('Subject'); 
+    } catch (error) {
+      console.error("Error saving classCode to AsyncStorage: ", error);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>CLASSES</Text>
       </View>
-      {subjects.map((subject) => (
-        <TouchableOpacity key={subject.id} style={styles.subjectContainer} onPress={() => navigation.navigate('Subject', { subject })}>
+        {subjects.map((subject) => (
+          <TouchableOpacity 
+            key={subject.id} 
+            style={styles.subjectContainer} 
+            onPress={() => handlePress(subject)} 
+          >
           <View style={{ flexDirection: 'row', alignItems: 'center', paddingEnd: 5 }}>
             <Image source={editIcon} style={styles.editIcon} />
             <Text style={styles.classCode}>{subject.classCode}</Text>
