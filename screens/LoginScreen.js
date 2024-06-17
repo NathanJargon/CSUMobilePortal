@@ -24,16 +24,6 @@ export default function LoginScreen({ navigation }) {
       if (savedEmail && savedPassword) {
         setEmail(savedEmail);
         setPassword(savedPassword);
-        setRemember(true);
-        firebase
-          .auth()
-          .signInWithEmailAndPassword(savedEmail, savedPassword)
-          .then((response) => {
-            navigation.navigate('Main');
-          })
-          .catch((error) => {
-            // Handle login error here
-          });
       }
     };
     checkLogin();
@@ -47,13 +37,15 @@ export default function LoginScreen({ navigation }) {
     return () => authListener();
   }, []);
 
-  const onLogin = async () => {
+const onLogin = async () => {
     try {
+      console.log(`Attempting login with EmployeeId/UserId: ${email} and Password: ${password}`);
+  
       const teacherQuerySnapshot = await firebase.firestore().collection('teachers')
         .where('employeeId', '==', email)
-        .where('password', '==', password) 
+        .where('password', '==', password)
         .get();
-
+  
       let userDoc = null;
       if (teacherQuerySnapshot.empty) {
         const userQuerySnapshot = await firebase.firestore().collection('users')
@@ -62,26 +54,38 @@ export default function LoginScreen({ navigation }) {
           .get();
         if (!userQuerySnapshot.empty) {
           userDoc = userQuerySnapshot.docs[0];
+          console.log(`Found user with UserId: ${userDoc.data().userId} and Password: ${userDoc.data().password}`);
         }
       } else {
         userDoc = teacherQuerySnapshot.docs[0];
+        console.log(`Found teacher with EmployeeId: ${userDoc.data().employeeId} and Password: ${userDoc.data().password}`);
       }
 
+      console.log("User Document: ", userDoc);
+  
       if (userDoc) {
-        const positionTitle = userDoc.data().positionTitle; 
-        const imageUrl = userDoc.data().imageUrl;
-        const fullName = userDoc.data().firstName + ' ' +  userDoc.data().middleName + ' ' + userDoc.data().lastName;
-        await AsyncStorage.setItem('email', email);
-        await AsyncStorage.setItem('password', password);
-        await AsyncStorage.setItem('positionTitle', positionTitle); 
-        await AsyncStorage.setItem('imageUrl', imageUrl);
+        const positionTitle = userDoc.data().positionTitle || 'N/A'; 
+        const imageUrl = userDoc.data().imageUrl || ''; 
+        const fullName = userDoc.data().firstName + ' ' + (userDoc.data().middleName || '') + ' ' + userDoc.data().lastName; 
+        
+        await AsyncStorage.clear();
+
+        // Ensure email and password are not undefined or null before setting
+        if (email) await AsyncStorage.setItem('email', email);
+        if (password) await AsyncStorage.setItem('password', password);
+        await AsyncStorage.setItem('positionTitle', positionTitle);
+        if (imageUrl) await AsyncStorage.setItem('imageUrl', imageUrl); 
         await AsyncStorage.setItem('fullName', fullName);
+        
         navigation.navigate('Main');
+
       } else {
-        // Handle login failure
+        console.log(error);
+        Alert.alert("Login Failed", "Invalid username or password. Please try again.");
       }
     } catch (error) {
-      // Handle any errors that occur during the login process
+      console.log(error);
+      Alert.alert("Login Error", "An error occurred during login. Please try again later.");
     }
   };
 
