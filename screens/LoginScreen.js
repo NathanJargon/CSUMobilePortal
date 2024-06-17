@@ -73,7 +73,7 @@ const onLogin = async () => {
         // Ensure email and password are not undefined or null before setting
         if (email) await AsyncStorage.setItem('email', email);
         if (password) await AsyncStorage.setItem('password', password);
-        await AsyncStorage.setItem('positionTitle', positionTitle);
+        if (positionTitle) await AsyncStorage.setItem('positionTitle', positionTitle);
         if (imageUrl) await AsyncStorage.setItem('imageUrl', imageUrl); 
         await AsyncStorage.setItem('fullName', fullName);
         
