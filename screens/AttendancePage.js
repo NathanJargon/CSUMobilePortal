@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Alert, Modal, TextInput, View, StyleSheet, Text, FlatList, TouchableOpacity, BackHandler, Dimensions, Platform } from 'react-native';
 import { firebase } from './FirebaseConfig';
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 import { Provider, Menu, Button } from 'react-native-paper';
 import { Picker } from '@react-native-picker/picker';
 import * as Print from 'expo-print';
