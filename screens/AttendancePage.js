@@ -144,6 +144,21 @@ export default function AttendancePage({ navigation, route }) {
   };
 
   const submitFinalAttendanceForAll = async () => {
+    Alert.alert(
+      "Confirm Submission",
+      "Are you sure you want to submit the final attendance for all students?",
+      [
+        {
+          text: "Cancel",
+          onPress: () => console.log("Submission cancelled"),
+          style: "cancel"
+        },
+        { text: "OK", onPress: () => submitFinalAttendance() }
+      ]
+    );
+  };
+
+  const submitFinalAttendance = async () => {
     const querySnapshot = await firebase.firestore().collection('subjects')
       .where('classCode', '==', classCode).get();
 
@@ -180,7 +195,7 @@ export default function AttendancePage({ navigation, route }) {
       console.log('No subject found with the classCode:', classCode);
     }
   };
-
+  
   const getStatusColor = (status) => {
     switch (status) {
       case 'present': return 'green';
