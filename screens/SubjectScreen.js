@@ -46,6 +46,11 @@ export default function SubjectScreen({ navigation }) {
         ...doc.data(),
       };
 
+      if (subject.classCode === classCode) {
+        console.log(subject);
+        setSelectedSubjectId(subject.id);
+      }
+
       // Fetch students for the subject based on its classCode
       try {
         const studentsSnapshot = await firebase.firestore()
@@ -142,12 +147,17 @@ export default function SubjectScreen({ navigation }) {
 
   const handleStudentPress = (student) => {
     setSelectedStudent(student);
+    console.log("Student selected: ", student);
     setEditModalVisible(true);
   };
 
   const updateStudentInFirestore = async (newName, newGrade) => {
-    if (!selectedSubjectId || !selectedStudent || !selectedStudent.documentId) {
-      console.error("Missing information to update student.");
+    console.log(`Selected Subject ID: ${selectedSubjectId}`);
+    console.log(`Selected Student: `, selectedStudent);
+    console.log(`Selected Student Document ID: ${selectedStudent ? selectedStudent.documentId : 'undefined'}`);
+
+    if (!selectedStudent || !selectedStudent.documentId) {
+      console.log("Missing information to update student.");
       return;
     }
 
@@ -177,17 +187,15 @@ export default function SubjectScreen({ navigation }) {
     }
   };
 
-  // Update the updateStudentDetails function to use updateStudentInFirestore
   const updateStudentDetails = () => {
     if (!selectedStudent) {
       console.error("No student selected for update.");
       return;
     }
 
-    // Assuming you have inputs in your modal that update selectedStudent's name and grade
     updateStudentInFirestore(selectedStudent.name, selectedStudent.grade)
       .then(() => {
-        setEditModalVisible(false); // Close the modal on success
+        setEditModalVisible(false); 
       })
       .catch((error) => {
         console.error("Failed to update student details: ", error);
@@ -222,7 +230,7 @@ export default function SubjectScreen({ navigation }) {
             <View style={styles.studentRow}>
               <Image source={editIcon} style={styles.editIcon} />
               <Text style={styles.studentName}>{student.name}</Text>
-              <Text style={styles.studentGrade}>{student.grade}%</Text>
+              <Text style={styles.studentGrade}>{student.grade}</Text>
             </View>
           </TouchableOpacity>
         ))}
