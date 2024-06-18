@@ -6,6 +6,7 @@ import * as Sharing from 'expo-sharing';
 import { Provider, Menu, Button } from 'react-native-paper';
 import { Picker } from '@react-native-picker/picker';
 import * as Print from 'expo-print';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 
@@ -142,6 +143,44 @@ export default function AttendancePage({ navigation, route }) {
     }
   };
 
+  const submitFinalAttendanceForAll = async () => {
+    const querySnapshot = await firebase.firestore().collection('subjects')
+      .where('classCode', '==', classCode).get();
+
+    if (!querySnapshot.empty) {
+      const subjectDoc = querySnapshot.docs[0];
+      const studentsCollectionRef = subjectDoc.ref.collection(classCode);
+
+      const studentQuerySnapshot = await studentsCollectionRef.get();
+
+      if (!studentQuerySnapshot.empty) {
+        studentQuerySnapshot.docs.forEach(async (studentDoc) => {
+          const studentDocRef = studentDoc.ref;
+          let attendance = studentDoc.data().attendance || [0, 0, 0, 0];
+          let finalAttendance = studentDoc.data().finalAttendance || [0, 0, 0, 0];
+
+          finalAttendance = finalAttendance.map((val, index) => val + (attendance[index] || 0));
+
+          await studentDocRef.update({
+            finalAttendance: finalAttendance,
+            attendance: [0, 0, 0, 0]
+          }).then(() => {
+            console.log('Final attendance updated for', studentDoc.data().name);
+          }).catch((error) => {
+            console.error("Error updating document for", studentDoc.data().name, ":", error);
+          });
+        });
+        
+        Alert.alert('Success', 'Final attendance submitted successfully.');
+
+      } else {
+        console.log('No students found in the class:', classCode);
+      }
+    } else {
+      console.log('No subject found with the classCode:', classCode);
+    }
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'present': return 'green';
@@ -173,14 +212,113 @@ const fetchDataAndGeneratePDF = async () => {
       studentDocsSnapshot.forEach(doc => {
         let studentData = doc.data();
         // Ensure attendance is an array of numbers, defaulting to 0 if undefined
+        studentData.finalAttendance = studentData.finalAttendance ? studentData.finalAttendance.map(Number) : [0, 0, 0, 0];
+        students.push(studentData);
+      });
+
+      const totalAbsences = subjectDoc.totalAbsences || 0;
+      const totalDaysPresent = subjectDoc.totalDaysPresent || 0;
+      const fullName = await AsyncStorage.getItem('fullName');
+
+      const header = `<h1 style="text-align:center;">Class Code: ${classCode}</h1><h2 style="text-align:center;">Period: ${schedule.period}</h2><h3 style="text-align:center;">Instructor: ${fullName}</h3><br>`;
+      const style = `<style>
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 0 auto;
+        }
+        th, td {
+          border: 1px solid black;
+          text-align: center;
+          padding: 8px;
+        }
+        tr:nth-child(even) {background-color: #f2f2f2;}
+      </style>`;
+      students.sort((a, b) => a.name.localeCompare(b.name));
+
+      // Update the table header to include new columns for totals
+      const attendanceTableHeader = `<table><tr><th>Student Name</th><th>Present</th><th>Absent</th><th>Excuse</th><th>Late</th><th>Total No. of Present</th><th>Total No. of Absence</th><th>Total No. of Excuse</th><th>Total No. of Late</th></tr>`;
+
+      const attendanceTableRows = students.map(student => {
+        let studentPresence = Number(student.finalAttendance[0]) || 0;
+        let studentAbsence = Number(student.finalAttendance[1]) || 0;
+        let studentExcuse = Number(student.finalAttendance[2]) || 0;
+        let studentLate = Number(student.finalAttendance[3]) || 0;
+      
+
+        studentPresence = student.finalAttendance[0] || 0;
+        studentAbsence = student.finalAttendance[1] || 0;
+        studentExcuse = student.finalAttendance[2] || 0;
+        studentLate = student.finalAttendance[3] || 0;
+
+        // Update class totals
+        totalClassAbsences += studentAbsence;
+        totalClassPresence += studentPresence;
+
+        // Generate table row for the student with totals
+        const records = `<td>${studentPresence}</td><td>${studentAbsence}</td><td>${studentExcuse}</td><td>${studentLate}</td><td>${studentPresence}</td><td>${studentAbsence}</td><td>${studentExcuse}</td><td>${studentLate}</td>`;
+        return `<tr><td>${student.name}</td>${records}</tr>`;
+      }).join('');
+
+      // Adjust the classTotalsRow to include totals for excuses and lates
+      const classTotalsRow = `<tr style="font-weight:bold;"><td>Total</td><td>${totalClassPresence}</td><td>${totalClassAbsences}</td><td></td><td></td><td>${totalClassPresence}</td><td>${totalClassAbsences}</td><td></td><td></td></tr>`;
+
+      const attendanceTableFooter = `</table>`;
+      const attendanceTable = `${attendanceTableHeader}${attendanceTableRows}${attendanceTableFooter}`;
+      
+
+      const totals = `<br><p style="text-align:center;">Total No. of Absences: ${totalClassAbsences}</p><p style="text-align:center;">Total No. of Days Present: ${totalClassPresence}</p>`;
+
+      const legend = `<br><p style="text-align:center;">Legend:</p><ul style="list-style-type:none; text-align:center;"><li>1 - present</li><li>0 - absent</li><li>Excuse and Late are marked accordingly</li></ul>`;
+      const htmlContent = `${style}${header}${attendanceTable}`;
+
+      const { uri } = await Print.printToFileAsync({ html: htmlContent });
+      console.log('PDF generated at:', uri);
+
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const storageRef = firebase.storage().ref();
+      const fileRef = storageRef.child(`attendance_files/${classCode}_attendance_record.pdf`);
+      await fileRef.put(blob);
+      await Print.printAsync({ uri });
+
+      Alert.alert('Success', 'Attendance PDF generated and uploaded to Firebase Storage successfully.');
+    } catch (error) {
+      console.error("Error fetching data or generating PDF:", error);
+      Alert.alert('Error', 'There was an issue generating or uploading the attendance PDF.');
+    }
+  };
+
+  const fetchCurrentData = async () => {
+    let totalClassAbsences = 0;
+    let totalClassPresence = 0;
+
+    try {
+      const querySnapshot = await firebase.firestore().collection('subjects')
+        .where('classCode', '==', classCode).get();
+      
+      if (querySnapshot.empty) {
+        console.log('No subject found with the classCode:', classCode);
+        return;
+      }
+
+      const subjectDoc = querySnapshot.docs[0].data();
+      const studentsCollectionRef = querySnapshot.docs[0].ref.collection(classCode);
+      const studentDocsSnapshot = await studentsCollectionRef.get();
+      const students = [];
+
+      studentDocsSnapshot.forEach(doc => {
+        let studentData = doc.data();
+        // Ensure attendance is an array of numbers, defaulting to 0 if undefined
         studentData.attendance = studentData.attendance ? studentData.attendance.map(Number) : [0, 0, 0, 0];
         students.push(studentData);
       });
 
       const totalAbsences = subjectDoc.totalAbsences || 0;
       const totalDaysPresent = subjectDoc.totalDaysPresent || 0;
+      const fullName = await AsyncStorage.getItem('fullName');
 
-      const header = `<h1 style="text-align:center;">Class Code: ${classCode}</h1><h2 style="text-align:center;">Period: ${schedule.period}</h2><h3 style="text-align:center;">Instructor: ${subjectDoc.name}</h3><br>`;
+      const header = `<h1 style="text-align:center;">Class Code: ${classCode}</h1><h2 style="text-align:center;">Period: ${schedule.period}</h2><h3 style="text-align:center;">Instructor: ${fullName}</h3><br>`;
       const style = `<style>
         table {
           width: 100%;
@@ -323,6 +461,12 @@ const fetchDataAndGeneratePDF = async () => {
             */ }
             <TouchableOpacity style={styles.button} onPress={fetchDataAndGeneratePDF}>
               <Text style={styles.buttonText}>Generate and Print PDF File</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={fetchCurrentData}>
+              <Text style={styles.buttonText}>View Record</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={submitFinalAttendanceForAll}>
+              <Text style={styles.buttonText}>Submit</Text>
             </TouchableOpacity>
           </>
         }
