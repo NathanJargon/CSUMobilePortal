@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "CICSPortalF",
-    "slug": "CICSPortalF",
+    "slug": "cicsportalf",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -18,10 +18,17 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.synochrina.cicsportalf"
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "048b17a2-6d57-4204-92e9-fc4703be2bb2"
+      }
+    },
+    "owner": "synochrina"
   }
 }
